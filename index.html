@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="ko" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>강의 웹 대시보드</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Pretendard', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: '#2563eb', // blue-600
+                        darkbg: '#0f172a',  // slate-900
+                        darkcard: '#1e293b', // slate-800
+                        darkborder: '#334155' // slate-700
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- 폰트 및 아이콘 -->
+    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body {
+            font-family: 'Pretendard', sans-serif;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        
+        /* 스크롤바 커스텀 */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        /* 탭 액티브 스타일 */
+        .tab-btn {
+            border-bottom: 3px solid transparent;
+            color: #64748b; /* slate-500 */
+        }
+        .dark .tab-btn { color: #94a3b8; }
+        
+        .tab-btn.active {
+            border-bottom-color: #2563eb;
+            color: #1e40af;
+            font-weight: 700;
+        }
+        .dark .tab-btn.active {
+            border-bottom-color: #3b82f6;
+            color: #60a5fa;
+        }
+
+        /* 부드러운 전환 효과 */
+        .fade-in { animation: fadeIn 0.4s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col bg-[#f4f6f8] dark:bg-darkbg text-slate-800 dark:text-slate-200">
+
+    <!-- 메인 헤더 -->
+    <header class="bg-white dark:bg-darkcard shadow-sm sticky top-0 z-40 transition-colors">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center py-4">
+                
+                <!-- 좌측 타이틀 영역 -->
+                <div class="flex items-center gap-4">
+                    <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-md flex-shrink-0">
+                        <i class="fa-solid fa-graduation-cap text-xl"></i>
+                    </div>
+                    <div>
+                        <div id="orgName" class="text-xs font-bold text-blue-600 dark:text-blue-400 mb-0.5">강의 대상 로딩중...</div>
+                        <h1 id="courseTopic" class="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                            데이터 로딩중...
+                        </h1>
+                        <div class="flex items-center text-xs font-medium text-slate-500 dark:text-slate-400 mt-1">
+                            <span>개발자: 가치있는 미래교육 연구소 대표 김병찬</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 우측 컨트롤 영역 -->
+                <div class="flex items-center gap-3">
+                    <!-- 동기화 상태 (스크린샷 참조 디자인) -->
+                    <div id="syncStatus" class="hidden sm:flex items-center text-xs font-medium text-blue-600 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-300 px-3 py-1.5 rounded-full border border-blue-100 dark:border-blue-800">
+                        <i class="fa-solid fa-rotate animate-spin mr-2"></i> 동기화 됨
+                    </div>
+                    
+                    <!-- 다크모드 토글 -->
+                    <button onclick="toggleDarkMode()" class="w-10 h-10 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700 transition-colors" title="화면 모드 변경">
+                        <i id="themeIcon" class="fa-solid fa-moon text-lg"></i>
+                    </button>
+                    
+                    <!-- 관리자 모드 -->
+                    <button onclick="openAdminModal()" class="flex items-center text-sm font-semibold text-slate-600 bg-white dark:bg-darkcard border border-slate-200 dark:border-darkborder hover:bg-slate-50 dark:hover:bg-slate-700 px-4 py-2 rounded-lg transition-colors shadow-sm">
+                        <i class="fa-solid fa-lock mr-2"></i> 편집 인증
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 탭 네비게이션 -->
+        <nav class="border-t border-slate-100 dark:border-darkborder">
+            <div id="tabContainer" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex space-x-6 overflow-x-auto no-scrollbar">
+                <!-- 동적 탭 렌더링 영역 -->
+            </div>
+        </nav>
+    </header>
+
+    <!-- 서브 메뉴 (스크린샷의 노란색 배경 영역 참조) -->
+    <div id="subMenuBar" class="bg-orange-50 dark:bg-orange-950/20 border-b border-orange-100 dark:border-orange-900/50" style="display: none;">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center gap-3" id="actionBar">
+            <!-- 공지사항 컨테이너 -->
+            <div id="noticeContainer" class="flex flex-wrap gap-2 items-center" style="display: none;">
+                <span class="text-xs font-bold text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-900/50 px-2 py-1 rounded-md flex items-center">
+                    <i class="fa-solid fa-bullhorn mr-1.5"></i>공지
+                </span>
+                <!-- 공지 데이터 주입 -->
+            </div>
+            
+            <div id="subBarSeparator" class="w-px h-5 bg-orange-200 dark:bg-orange-800 mx-1 hidden sm:block" style="display: none;"></div>
+            
+            <!-- 참고자료 컨테이너 -->
+            <div id="referenceContainer" class="flex flex-wrap gap-2 items-center" style="display: none;">
+                <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/50 px-2 py-1 rounded-md flex items-center">
+                    <i class="fa-solid fa-link mr-1.5"></i>참고자료
+                </span>
+                <!-- 참고자료 데이터 주입 -->
+            </div>
+        </div>
+    </div>
+
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+        
+        <!-- 로딩 인디케이터 -->
+        <div id="loadingIndicator" class="flex flex-col items-center justify-center py-32">
+            <div class="animate-spin rounded-full h-12 w-12 border-4 border-slate-200 border-t-blue-600 mb-4"></div>
+            <p class="text-slate-500 dark:text-slate-400 font-medium animate-pulse">구글 스프레드시트와 실시간 동기화 중입니다...</p>
+        </div>
+
+        <!-- 전체 컨텐츠 컨테이너 -->
+        <div id="contentContainer" class="hidden fade-in">
+            <!-- 동적 섹션 렌더링 영역 -->
+        </div>
+    </main>
+
+    <!-- QR Code Modal -->
+    <div id="qrModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 p-4 backdrop-blur-sm transition-opacity">
+        <div class="bg-white dark:bg-darkcard rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl relative border border-slate-200 dark:border-darkborder">
+            <button onclick="closeQrModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 dark:hover:text-white focus:outline-none">
+                <i class="fa-solid fa-xmark text-2xl"></i>
+            </button>
+            <h4 id="qrModalTitle" class="text-xl font-bold text-slate-900 dark:text-white mb-4 mt-2 truncate px-4">QR 코드</h4>
+            <div class="bg-white p-4 rounded-xl inline-block mb-4 border border-slate-200">
+                <img id="qrModalImg" src="" alt="QR" class="w-64 h-64 object-contain">
+            </div>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">스마트폰 카메라로 스캔하여 접속하세요.</p>
+            <a id="qrModalLink" href="#" target="_blank" class="block w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-colors shadow-sm">
+                해당 링크 바로 열기
+            </a>
+        </div>
+    </div>
+
+    <!-- Admin Login Modal -->
+    <div id="adminModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 p-4 backdrop-blur-sm">
+        <div class="bg-white dark:bg-darkcard rounded-2xl p-8 max-w-md w-full shadow-2xl relative border border-slate-200 dark:border-darkborder">
+            <button onclick="closeAdminModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 dark:hover:text-white">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+            <h4 class="text-xl font-bold text-slate-900 dark:text-white mb-2"><i class="fa-solid fa-shield-halved text-blue-600 mr-2"></i>관리자 인증</h4>
+            <p class="text-sm text-slate-600 dark:text-slate-400 mb-6">설정 시트에 등록된 인증번호를 입력하세요.</p>
+            
+            <input type="password" id="adminPassword" class="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 outline-none mb-4" placeholder="인증번호 입력">
+            
+            <div id="adminErrorMsg" class="hidden text-red-500 text-sm mb-4">비밀번호가 일치하지 않습니다.</div>
+            
+            <button onclick="checkAdminPassword()" class="w-full py-3 bg-slate-800 hover:bg-slate-900 dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-bold rounded-xl transition-colors">
+                인증하고 시트 열기
+            </button>
+        </div>
+    </div>
+
+    <!-- Message Modal -->
+    <div id="msgModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 p-4 backdrop-blur-sm">
+        <div class="bg-white dark:bg-darkcard rounded-2xl p-6 max-w-sm w-full text-center shadow-xl border border-slate-200 dark:border-darkborder">
+            <div id="msgIcon" class="mb-4 text-5xl text-blue-500">
+                <i class="fa-solid fa-circle-info"></i>
+            </div>
+            <h4 id="msgTitle" class="text-xl font-bold text-slate-900 dark:text-white mb-2">알림</h4>
+            <p id="msgText" class="text-slate-600 dark:text-slate-400 mb-6 leading-relaxed">메시지 내용</p>
+            <button onclick="closeMsgModal()" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-colors">
+                확인
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // --- 전역 설정 ---
+        const SHEET_ID = '1L86irzJORFB8CndJ9osI471Dcts3HwM5Zp_7BNqk40M';
+        let adminAuthCode = '';
+        let activeCategories = []; // 동적 카테고리 저장 배열
+        const sheetLink = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`;
+
+        // --- 다크모드 로직 ---
+        function initTheme() {
+            if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+                document.getElementById('themeIcon').classList.replace('fa-moon', 'fa-sun');
+            } else {
+                document.documentElement.classList.remove('dark');
+                document.getElementById('themeIcon').classList.replace('fa-sun', 'fa-moon');
+            }
+        }
+        
+        function toggleDarkMode() {
+            const html = document.documentElement;
+            const icon = document.getElementById('themeIcon');
+            
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                localStorage.theme = 'light';
+                icon.classList.replace('fa-sun', 'fa-moon');
+            } else {
+                html.classList.add('dark');
+                localStorage.theme = 'dark';
+                icon.classList.replace('fa-moon', 'fa-sun');
+            }
+        }
+        
+        initTheme(); // 스크립트 로드 시 즉시 실행
+
+        // --- 탭 전환 로직 ---
+        function switchTab(tabIdx) {
+            // 모든 탭 스타일 초기화
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+                // 배지 색상 초기화
+                const badge = btn.querySelector('.session-badge');
+                if(badge) {
+                    badge.className = 'text-xs font-bold px-2 py-0.5 rounded mr-2 session-badge bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300';
+                }
+            });
+            
+            // 활성화 탭 스타일 적용
+            const activeBtn = document.getElementById(`tab-${tabIdx}`);
+            if(activeBtn) {
+                activeBtn.classList.add('active');
+                const activeBadge = activeBtn.querySelector('.session-badge');
+                if(activeBadge) {
+                    activeBadge.className = 'text-xs font-bold px-2 py-0.5 rounded mr-2 session-badge bg-blue-600 text-white dark:bg-blue-600 dark:text-white';
+                }
+            }
+            
+            // 섹션 전환
+            document.querySelectorAll('main section').forEach(sec => {
+                sec.classList.add('hidden');
+                sec.classList.remove('fade-in');
+            });
+            const targetSec = document.getElementById(`section-${tabIdx}`);
+            if(targetSec) {
+                targetSec.classList.remove('hidden');
+                // 리플로우 유도 후 애니메이션 클래스 추가 (부드러운 전환)
+                void targetSec.offsetWidth; 
+                targetSec.classList.add('fade-in');
+            }
+        }
+
+        // --- 데이터 Fetch 공통 함수 ---
+        async function fetchSheetData(sheetName) {
+            // headers=0을 추가하여 데이터의 1행이 무조건 index 0(배열의 첫번째)으로 들어오도록 보장합니다.
+            const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&headers=0&sheet=${encodeURIComponent(sheetName)}`;
+            try {
+                const response = await fetch(url);
+                const text = await response.text();
+                const jsonText = text.substring(47).slice(0, -2); // 구글 API JSON 감싸기 제거
+                const data = JSON.parse(jsonText);
+                return data.table.rows;
+            } catch (error) {
+                console.error(`[${sheetName}] 데이터 로드 실패:`, error);
+                return null;
+            }
+        }
+
+        // 설정 로드
+        async function loadSettings() {
+            const rows = await fetchSheetData('설정');
+            activeCategories = []; // 초기화
+
+            if (rows && rows.length > 1) { // 1행(헤더), 2행(실제 데이터)
+                try {
+                    const rowData = rows[1].c; // index 1이 2행을 의미합니다.
+                    adminAuthCode = (rowData[0] && rowData[0].v) ? rowData[0].v.toString() : ''; 
+                    const orgName = (rowData[1] && rowData[1].v) ? rowData[1].v : '가치있는 미래교육 연구소'; 
+                    const topic = (rowData[2] && rowData[2].v) ? rowData[2].v : '디지털새싹 AI 특화과정'; 
+
+                    document.getElementById('orgName').innerText = orgName;
+                    document.getElementById('courseTopic').innerText = topic;
+                    document.title = `${topic} - 대시보드`;
+                } catch(e) {
+                    console.log("설정(기본 정보) 파싱 오류", e);
+                }
+
+                // E열(인덱스 4: 카테고리명), F열(인덱스 5: 노출여부 체크박스) 처리
+                for (let i = 1; i < rows.length; i++) {
+                    if (!rows[i] || !rows[i].c) continue;
+                    const cols = rows[i].c;
+                    const catName = (cols[4] && cols[4].v) ? cols[4].v.toString().trim() : '';
+                    let isVisible = false;
+                    
+                    if (cols[5] && cols[5].v != null) {
+                        const val = cols[5].v.toString().toUpperCase();
+                        // 구글 시트 체크박스는 주로 true/false 또는 TRUE/FALSE/1/YES로 넘어옴
+                        if (val === 'TRUE' || val === '1' || val === 'YES' || cols[5].v === true) {
+                            isVisible = true;
+                        }
+                    }
+
+                    // 카테고리명이 있고 노출에 체크된 항목만 배열에 추가
+                    if (catName && isVisible) {
+                        activeCategories.push(catName);
+                    }
+                }
+            }
+            return activeCategories;
+        }
+
+        // 차시별 강의안 데이터 반환 함수 (좌측 강의안 요약 영역)
+        function getLectureData(idx, catName) {
+            const data = [
+                {
+                    title: `1차시: ${catName}`,
+                    desc: "구글 스프레드시트를 활용한 협업과 AI 프롬프트 작성의 핵심 원리를 다집니다.",
+                    notesTitle: "강의안 요약 (협업 및 프롬프트 기초)",
+                    notes: `
+                        <div class="space-y-6">
+                            <div class="flex items-start">
+                                <div class="flex-shrink-0 w-6 h-6 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center text-xs font-bold mt-0.5">1</div>
+                                <div class="ml-3">
+                                    <h5 class="text-sm font-bold text-slate-800 dark:text-slate-200">구글 협업문서의 이해</h5>
+                                    <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">클라우드 기반 문서(시트, 독스 등) 공유와 동시 작업의 이점을 이해하고 실무 적용 방안을 모색합니다.</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start">
+                                <div class="flex-shrink-0 w-6 h-6 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center text-xs font-bold mt-0.5">2</div>
+                                <div class="ml-3">
+                                    <h5 class="text-sm font-bold text-slate-800 dark:text-slate-200">프롬프트 엔지니어링 기초</h5>
+                                    <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">AI에게 명확한 '역할', '맥락', '지시사항'을 부여하여 원하는 결과물을 얻어내는 핵심 공식을 학습합니다.</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start">
+                                <div class="flex-shrink-0 w-6 h-6 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center text-xs font-bold mt-0.5">3</div>
+                                <div class="ml-3">
+                                    <h5 class="text-sm font-bold text-slate-800 dark:text-slate-200">올바른 프롬프트 작성 실습</h5>
+                                    <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">우측의 실습 예제를 활용하여 직접 프롬프트를 작성하고, AI의 답변 품질이 어떻게 달라지는지 비교 분석해 봅니다.</p>
+                                </div>
+                            </div>
+                        </div>
+                    `
+                },
+                {
+                    title: `2차시: ${catName}`,
+                    desc: "구글의 생성형 AI 제미나이(Gemini)와 맞춤형 GEMS의 활용법을 익힙니다.",
+                    notesTitle: "강의안 요약 (제미나이 & GEMS)",
+                    notes: `
+                        <div class="space-y-6">
+                            <div class="flex items-start">
+                                <div class="flex-shrink-0 w-6 h-6 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center text-xs font-bold mt-0.5">1</div>
+                                <div class="ml-3">
+                                    <h5 class="text-sm font-bold text-slate-800 dark:text-slate-200">제미나이(Gemini) 소개</h5>
+                                    <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">구글의 최신 AI 모델인 제미나이의 특징과 장점, 그리고 구글 워크스페이스와의 연동성에 대해 알아봅니다.</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start">
+                                <div class="flex-shrink-0 w-6 h-6 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center text-xs font-bold mt-0.5">2</div>
+                                <div class="ml-3">
+                                    <h5 class="text-sm font-bold text-slate-800 dark:text-slate-200">GEMS(맞춤형 챗봇)의 이해</h5>
+                                    <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">특정 목적에 맞게 사전 프롬프트와 지식(데이터)을 설정하여 나만의 맞춤형 AI 챗봇을 만드는 GEMS 기능을 이해합니다.</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start">
+                                <div class="flex-shrink-0 w-6 h-6 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center text-xs font-bold mt-0.5">3</div>
+                                <div class="ml-3">
+                                    <h5 class="text-sm font-bold text-slate-800 dark:text-slate-200">나만의 GEMS 설계 실습</h5>
+                                    <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">우측의 실습 자료를 통해 업무 자동화나 학습 보조에 필요한 GEMS를 직접 기획하고 세팅해 봅니다.</p>
+                                </div>
+                            </div>
+                        </div>
+                    `
+                },
+                {
+                    title: `3차시: ${catName}`,
+                    desc: "제미나이 Canvas를 활용하여 코딩 지식 없이도 서버 없는 단일 웹앱을 제작해 봅니다.",
+                    notesTitle: "강의안 요약 (바이브코딩 기초)",
+                    notes: `
+                        <div class="space-y-6">
+                            <div class="flex items-start">
+                                <div class="flex-shrink-0 w-6 h-6 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center text-xs font-bold mt-0.5">1</div>
+                                <div class="ml-3">
+                                    <h5 class="text-sm font-bold text-slate-800 dark:text-slate-200">바이브코딩(Vibe Coding)이란?</h5>
+                                    <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">복잡한 코딩 문법을 몰라도 자연어로 아이디어를 설명(Vibe)하여 AI가 코드를 작성하도록 하는 새로운 개발 방식을 이해합니다.</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start">
+                                <div class="flex-shrink-0 w-6 h-6 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center text-xs font-bold mt-0.5">2</div>
+                                <div class="ml-3">
+                                    <h5 class="text-sm font-bold text-slate-800 dark:text-slate-200">제미나이 Canvas 모드</h5>
+                                    <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">AI와 코드를 함께 보며 실시간으로 수정 및 피드백을 주고받을 수 있는 Canvas UI의 강력한 장점을 체험합니다.</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start">
+                                <div class="flex-shrink-0 w-6 h-6 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center text-xs font-bold mt-0.5">3</div>
+                                <div class="ml-3">
+                                    <h5 class="text-sm font-bold text-slate-800 dark:text-slate-200">단일 웹앱 제작 실습</h5>
+                                    <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">서버가 필요 없는 순수 HTML/JS 기반의 간단한 유틸리티 앱(예: 타이머, 계산기 등)을 프롬프트만으로 완성해 봅니다.</p>
+                                </div>
+                            </div>
+                        </div>
+                    `
+                },
+                {
+                    title: `4차시: ${catName}`,
+                    desc: "복잡한 서버 구축 없이, 익숙한 구글 스프레드시트를 데이터베이스로 활용하여 지금 보고 계신 화면과 같은 '동적 웹 대시보드'를 구축합니다.",
+                    notesTitle: "강의안 요약 (원리 및 세팅)",
+                    notes: `
+                        <div class="space-y-6">
+                            <div class="flex items-start">
+                                <div class="flex-shrink-0 w-6 h-6 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center text-xs font-bold mt-0.5">1</div>
+                                <div class="ml-3">
+                                    <h5 class="text-sm font-bold text-slate-800 dark:text-slate-200">구글 시트 = 데이터베이스</h5>
+                                    <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">- 데이터를 엑셀 다루듯 쉽게 수정할 수 있으며, 수정 즉시 웹페이지에 실시간 반영됩니다.<br>- 핵심 설정: 시트의 공유 권한을 반드시 '링크가 있는 모든 사용자 보기'로 변경해야 API 통신이 가능합니다.</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start">
+                                <div class="flex-shrink-0 w-6 h-6 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center text-xs font-bold mt-0.5">2</div>
+                                <div class="ml-3">
+                                    <h5 class="text-sm font-bold text-slate-800 dark:text-slate-200">Google Visualization API 이해하기</h5>
+                                    <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">- gviz/tq 엔드포인트를 호출하여 시트 데이터를 JSON 형태로 가져오는 자바스크립트 원리를 간단히 살펴봅니다.<br>- 자바스크립트가 데이터를 읽어와서 예쁜 카드로 만들어(렌더링) 줍니다.</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start">
+                                <div class="flex-shrink-0 w-6 h-6 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center text-xs font-bold mt-0.5">3</div>
+                                <div class="ml-3">
+                                    <h5 class="text-sm font-bold text-slate-800 dark:text-slate-200">대시보드 커스터마이징 실습</h5>
+                                    <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">우측의 '기본 템플릿 코드'를 다운로드/복사합니다. 자신의 구글 시트를 복제(사본 만들기)한 후, 코드 내의 SHEET_ID 변수를 자신의 것으로 교체하여 나만의 대시보드를 완성해 보세요.</p>
+                                </div>
+                            </div>
+                        </div>
+                    `
+                }
+            ];
+            
+            // 시트 카테고리가 4개를 초과할 경우를 위한 기본값
+            if (idx >= data.length) {
+                return {
+                    title: `${idx + 1}차시: ${catName}`,
+                    desc: `${catName}에 대한 학습을 진행합니다.`,
+                    notesTitle: "강의안 요약",
+                    notes: `<div class="text-sm text-slate-500 dark:text-slate-400 p-4">이 차시에 대한 세부 강의안이 준비 중입니다.</div>`
+                };
+            }
+            return data[idx];
+        }
+
+        // 동적 UI 렌더링 함수 (설정 시트 기반)
+        function renderDynamicUI(categories) {
+            const tabContainer = document.getElementById('tabContainer');
+            const contentContainer = document.getElementById('contentContainer');
+            
+            tabContainer.innerHTML = '';
+            contentContainer.innerHTML = '';
+
+            if(categories.length === 0) {
+                contentContainer.innerHTML = `<div class="text-center py-20 text-slate-500 bg-white dark:bg-darkcard rounded-xl border border-slate-200 dark:border-darkborder shadow-sm">설정 시트에서 노출 체크(F열)된 카테고리가 없습니다.</div>`;
+                return;
+            }
+
+            categories.forEach((catName, idx) => {
+                // 1. 탭 버튼 렌더링 (차시명 없이 카테고리명만)
+                const isActiveTab = idx === 0 ? 'active' : '';
+                const tabBadgeColor = idx === 0 ? 'bg-blue-600 text-white dark:bg-blue-600 dark:text-white' : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300';
+                
+                tabContainer.innerHTML += `
+                    <button onclick="switchTab(${idx})" id="tab-${idx}" class="tab-btn ${isActiveTab} whitespace-nowrap py-4 px-1 text-base transition-colors flex items-center">
+                        <span class="text-xs font-bold px-2 py-0.5 rounded mr-2 session-badge ${tabBadgeColor}">${idx + 1}차시</span> 
+                        ${catName}
+                    </button>
+                `;
+
+                // 2. 카테고리 섹션 렌더링
+                const isHiddenSec = idx === 0 ? '' : 'hidden';
+                const sectionIcon = ['fa-layer-group', 'fa-cube', 'fa-shapes', 'fa-chart-pie', 'fa-book'][idx % 5];
+                const lectureInfo = getLectureData(idx, catName); // 강의안 데이터 로드
+                
+                contentContainer.innerHTML += `
+                    <section id="section-${idx}" class="${isHiddenSec} space-y-6">
+                        
+                        <!-- 헤더 카드 -->
+                        <div class="bg-white dark:bg-darkcard rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200 dark:border-darkborder">
+                            <h2 class="text-xl md:text-2xl font-bold flex items-center text-slate-900 dark:text-white mb-2">
+                                <i class="fa-solid ${sectionIcon} text-orange-500 mr-3"></i>
+                                ${lectureInfo.title}
+                            </h2>
+                            <p class="text-sm text-slate-600 dark:text-slate-400 ml-9">
+                                ${lectureInfo.desc}
+                            </p>
+                        </div>
+
+                        <!-- 2단 레이아웃 (왼쪽: 강의안, 오른쪽: 실습자료) -->
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            
+                            <!-- 왼쪽: 강의안 요약 -->
+                            <div class="bg-slate-50 dark:bg-darkbg rounded-2xl p-6 border border-slate-200 dark:border-darkborder shadow-inner flex flex-col h-full">
+                                <h3 class="text-lg font-bold text-slate-800 dark:text-slate-200 mb-6 flex items-center">
+                                    <i class="fa-solid fa-chalkboard-user text-indigo-500 mr-2"></i> ${lectureInfo.notesTitle}
+                                </h3>
+                                <div class="flex-grow">
+                                    ${lectureInfo.notes}
+                                </div>
+                            </div>
+
+                            <!-- 오른쪽: 실습 자료 리스트 -->
+                            <div class="bg-slate-50 dark:bg-darkbg rounded-2xl p-6 border border-slate-200 dark:border-darkborder shadow-inner flex flex-col h-full">
+                                <h3 class="text-lg font-bold text-slate-800 dark:text-slate-200 mb-6 flex items-center">
+                                    <i class="fa-solid fa-folder-open text-amber-500 mr-2"></i> 실습 자료 리스트
+                                </h3>
+                                <!-- 수직 리스트 형태로 배치 -->
+                                <div id="grid-${idx}" class="flex flex-col gap-4 overflow-y-auto pr-2 no-scrollbar" style="max-height: 500px;">
+                                    <div class="py-10 text-center text-slate-400">데이터를 불러오는 중입니다...</div>
+                                </div>
+                            </div>
+                            
+                        </div>
+                    </section>
+                `;
+            });
+        }
+
+        // 공지사항 및 참고자료 서브버튼 생성 헬퍼
+        function createSubButtonHTML(title, url, type = 'notice') {
+            const isNotice = type === 'notice';
+            const baseClass = "text-sm font-medium px-4 py-1.5 rounded-full transition-colors border flex items-center hover:shadow-sm whitespace-nowrap";
+            
+            const colorClass = isNotice 
+                ? "bg-white dark:bg-darkcard border-orange-200 dark:border-orange-800 text-slate-700 dark:text-slate-200 hover:border-orange-400 dark:hover:border-orange-500" 
+                : "bg-white dark:bg-darkcard border-emerald-200 dark:border-emerald-800 text-slate-700 dark:text-slate-200 hover:border-emerald-400 dark:hover:border-emerald-500";
+            
+            return `
+                <a href="${url}" target="_blank" class="${baseClass} ${colorClass}">
+                    ${title} <i class="fa-solid fa-arrow-up-right-from-square text-[10px] ml-1.5 opacity-50"></i>
+                </a>
+            `;
+        }
+
+        // 공지 로드
+        async function loadNotices() {
+            const rows = await fetchSheetData('공지');
+            const container = document.getElementById('noticeContainer');
+            
+            if (!rows || rows.length <= 1) {
+                container.style.display = 'none';
+                return 0;
+            }
+
+            let count = 0;
+            for (let i = 1; i < rows.length; i++) { // index 1부터 시작 (1행 헤더 제외)
+                if (!rows[i] || !rows[i].c) continue;
+                const cols = rows[i].c;
+                const title = (cols[0] && cols[0].v) ? cols[0].v : null;
+                const url = (cols[1] && cols[1].v) ? cols[1].v : null;
+                
+                if(title && url && url !== '#') {
+                    container.insertAdjacentHTML('beforeend', createSubButtonHTML(title, url, 'notice'));
+                    count++;
+                }
+            }
+            
+            container.style.display = count > 0 ? 'flex' : 'none';
+            return count;
+        }
+
+        // 참고자료 로드
+        async function loadReferences() {
+            const rows = await fetchSheetData('참고자료');
+            const container = document.getElementById('referenceContainer');
+            
+            if (!rows || rows.length <= 1) {
+                container.style.display = 'none';
+                return 0;
+            }
+
+            let count = 0;
+            for (let i = 1; i < rows.length; i++) { // index 1부터 시작 (1행 헤더 제외)
+                if (!rows[i] || !rows[i].c) continue;
+                const cols = rows[i].c;
+                const title = (cols[0] && cols[0].v) ? cols[0].v : null;
+                const url = (cols[1] && cols[1].v) ? cols[1].v : null;
+                
+                if(title && url && url !== '#') {
+                    container.insertAdjacentHTML('beforeend', createSubButtonHTML(title, url, 'reference'));
+                    count++;
+                }
+            }
+            
+            container.style.display = count > 0 ? 'flex' : 'none';
+            return count;
+        }
+
+        // 실습 카드(리스트 형태) 생성 헬퍼
+        function createResourceListHTML(title, url, isDownload) {
+            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(url)}`;
+            
+            const btnClass = isDownload 
+                ? "bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-600 hover:text-white dark:bg-teal-900/30 dark:text-teal-400 dark:border-teal-800 dark:hover:bg-teal-600 dark:hover:text-white" 
+                : "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-600 hover:text-white dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800 dark:hover:bg-blue-600 dark:hover:text-white";
+            
+            const btnText = isDownload ? '다운로드' : '링크열기';
+            const icon = isDownload ? 'fa-download' : 'fa-link';
+
+            return `
+                <div class="bg-white dark:bg-darkcard rounded-xl p-3 border border-slate-200 dark:border-darkborder shadow-sm flex items-center justify-between group transition-all hover:shadow-md">
+                    <div class="flex items-center overflow-hidden pr-3">
+                        <!-- QR 썸네일 -->
+                        <div class="flex-shrink-0 mr-3 cursor-pointer relative" onclick="openQrModal('${qrUrl}', '${title.replace(/'/g, "\\'")}', '${url}')" title="QR코드 확대">
+                            <img src="${qrUrl}" alt="QR" class="w-10 h-10 border border-slate-200 dark:border-slate-600 rounded bg-white p-0.5">
+                            <div class="absolute inset-0 bg-black/40 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                                <i class="fa-solid fa-magnifying-glass-plus text-white text-xs"></i>
+                            </div>
+                        </div>
+                        <h4 class="font-semibold text-slate-800 dark:text-slate-200 text-sm md:text-base truncate" title="${title}">${title}</h4>
+                    </div>
+                    
+                    <a href="${url}" target="_blank" class="flex-shrink-0 px-4 py-2 border rounded-lg text-xs md:text-sm font-bold transition-colors ${btnClass}">
+                        <i class="fa-solid ${icon} mr-1"></i> <span class="hidden sm:inline">${btnText}</span>
+                    </a>
+                </div>
+            `;
+        }
+
+        function createCopyTextHTML(title, text) {
+            // 이스케이프 처리 (줄바꿈, 따옴표 등)
+            const safeText = text.replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/\n/g, '\\n').replace(/`/g, '\\`');
+            return `
+                <div class="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 md:p-4 border border-slate-200 dark:border-darkborder shadow-sm flex flex-col gap-3 transition-all hover:shadow-md">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center pr-3">
+                            <div class="w-8 h-8 rounded-lg bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-400 mr-3 shrink-0">
+                                <i class="fa-solid fa-quote-left text-xs"></i>
+                            </div>
+                            <h4 class="font-semibold text-slate-800 dark:text-slate-200 text-sm md:text-base">${title}</h4>
+                        </div>
+                        <button onclick="copyToClipboard(this, '${safeText}')" class="flex-shrink-0 px-3 py-1.5 md:px-4 md:py-2 bg-white dark:bg-darkcard hover:bg-blue-50 dark:hover:bg-blue-900/30 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-darkborder rounded-lg text-xs md:text-sm font-bold transition-colors flex items-center">
+                            <i class="fa-regular fa-copy mr-1.5"></i> <span>복사</span>
+                        </button>
+                    </div>
+                    <div class="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-3 rounded-lg text-sm text-slate-600 dark:text-slate-400 font-mono break-all whitespace-pre-wrap max-h-40 overflow-y-auto no-scrollbar">
+                        ${text}
+                    </div>
+                </div>
+            `;
+        }
+
+        function copyToClipboard(btnElement, text) {
+            const formattedText = text.replace(/\\n/g, '\n'); // 줄바꿈 복원
+            const textarea = document.createElement('textarea');
+            textarea.value = formattedText;
+            document.body.appendChild(textarea);
+            textarea.select();
+            
+            try {
+                document.execCommand('copy');
+                const originalHtml = btnElement.innerHTML;
+                const originalClasses = btnElement.className;
+                
+                // 성공 시 버튼 스타일 및 텍스트 변경
+                btnElement.innerHTML = '<i class="fa-solid fa-check mr-1.5"></i> <span>복사됨</span>';
+                btnElement.className = "flex-shrink-0 px-3 py-1.5 md:px-4 md:py-2 bg-blue-600 text-white border border-blue-600 rounded-lg text-xs md:text-sm font-bold transition-colors flex items-center";
+                
+                // 2초 후 원래대로 복구
+                setTimeout(() => {
+                    btnElement.innerHTML = originalHtml;
+                    btnElement.className = originalClasses;
+                }, 2000);
+            } catch (err) {
+                console.error('복사 실패', err);
+            } finally {
+                document.body.removeChild(textarea);
+            }
+        }
+
+        // 차시(카테고리) 데이터 로드
+        async function loadSessionData(sheetName, idx) {
+            const rows = await fetchSheetData(sheetName);
+            const gridContainer = document.getElementById(`grid-${idx}`);
+            if (!gridContainer) return;
+
+            gridContainer.innerHTML = ''; 
+
+            if (!rows || rows.length <= 1) {
+                gridContainer.innerHTML = `<div class="p-6 text-center text-slate-400 dark:text-slate-500 bg-white dark:bg-darkcard rounded-xl border border-slate-200 dark:border-darkborder text-sm">등록된 실습 자료가 없습니다.</div>`;
+                return;
+            }
+
+            let hasData = false;
+            for (let i = 1; i < rows.length; i++) { // index 1부터 시작 (1행 헤더 제외)
+                if (!rows[i] || !rows[i].c) continue;
+                
+                const cols = rows[i].c;
+                const title = (cols[0] && cols[0].v) ? cols[0].v : '제목 없음';
+                const url = (cols[1] && cols[1].v) ? cols[1].v : '#';
+                
+                if (!title || title === '제목 없음' || !url || url === '#') continue;
+                
+                const urlStr = url.toString().trim();
+                const isUrl = urlStr.startsWith('http://') || urlStr.startsWith('https://');
+
+                if (isUrl) {
+                    let isDownload = false;
+                    if (cols[2] && cols[2].v) {
+                        const val = cols[2].v.toString().toLowerCase();
+                        if (val === 'true' || val === '1') isDownload = true;
+                    }
+                    gridContainer.innerHTML += createResourceListHTML(title, urlStr, isDownload);
+                } else {
+                    // 링크가 아닌 일반 텍스트인 경우 복사 전용 UI 렌더링
+                    gridContainer.innerHTML += createCopyTextHTML(title, urlStr);
+                }
+                
+                hasData = true;
+            }
+
+            if(!hasData) {
+                 gridContainer.innerHTML = `<div class="p-6 text-center text-slate-400 dark:text-slate-500 bg-white dark:bg-darkcard rounded-xl border border-slate-200 dark:border-darkborder text-sm">실습 자료가 준비중입니다.</div>`;
+            }
+        }
+
+        // 초기화
+        async function initializeDashboard() {
+            try {
+                // 1. 설정 데이터(카테고리) 로드
+                const categories = await loadSettings();
+                
+                // 2. 카테고리 기반 DOM(탭 및 섹션) 동적 렌더링
+                renderDynamicUI(categories);
+
+                // 3. 공지/참고 및 활성화된 카테고리 시트 데이터 동시 로드
+                const promises = [
+                    loadNotices(),
+                    loadReferences()
+                ];
+
+                categories.forEach((catName, idx) => {
+                    promises.push(loadSessionData(catName, idx)); // 시트명으로 카테고리명 전달
+                });
+
+                const results = await Promise.all(promises);
+                const noticeCount = results[0];
+                const refCount = results[1];
+                
+                // 공지와 참고자료 바 표시 제어
+                const subMenuBar = document.getElementById('subMenuBar');
+                const separator = document.getElementById('subBarSeparator');
+                
+                if (noticeCount > 0 || refCount > 0) {
+                    subMenuBar.style.display = 'block';
+                    if (noticeCount > 0 && refCount > 0) {
+                        separator.style.display = 'block';
+                        separator.classList.replace('hidden', 'sm:block');
+                    } else {
+                        separator.style.display = 'none';
+                        separator.classList.replace('sm:block', 'hidden');
+                    }
+                }
+                
+                document.getElementById('loadingIndicator').classList.add('hidden');
+                document.getElementById('contentContainer').classList.remove('hidden');
+                
+            } catch (error) {
+                console.error("초기화 에러:", error);
+                document.getElementById('loadingIndicator').innerHTML = `
+                    <div class="text-red-500 text-center bg-red-50 dark:bg-red-900/20 p-6 rounded-xl">
+                        <i class="fa-solid fa-triangle-exclamation text-4xl mb-3"></i>
+                        <p class="font-bold text-lg">데이터 연결 실패</p>
+                        <p class="text-sm mt-2 text-slate-600 dark:text-slate-400">구글 시트의 접근 권한('링크가 있는 모든 사용자')을 확인해주세요.</p>
+                    </div>
+                `;
+            }
+        }
+
+        // 모달 제어 함수들
+        function openQrModal(imgSrc, title, link) {
+            document.getElementById('qrModalImg').src = imgSrc;
+            document.getElementById('qrModalTitle').innerText = title;
+            document.getElementById('qrModalLink').href = link;
+            document.getElementById('qrModal').classList.remove('hidden');
+        }
+        function closeQrModal() { document.getElementById('qrModal').classList.add('hidden'); }
+
+        function openAdminModal() {
+            document.getElementById('adminPassword').value = '';
+            document.getElementById('adminErrorMsg').classList.add('hidden');
+            document.getElementById('adminModal').classList.remove('hidden');
+            setTimeout(() => document.getElementById('adminPassword').focus(), 100);
+        }
+        function closeAdminModal() { document.getElementById('adminModal').classList.add('hidden'); }
+
+        function checkAdminPassword() {
+            const inputVal = document.getElementById('adminPassword').value;
+            if (inputVal.toString() === adminAuthCode.toString() || adminAuthCode === '') {
+                closeAdminModal();
+                showMsgModal(
+                    "관리자 인증 성공", 
+                    "구글 스프레드시트로 이동하여 데이터를 편집합니다.<br>수정 후 이 화면을 <b>새로고침</b>하면 내용이 반영됩니다.", 
+                    "success", 
+                    () => window.open(sheetLink, '_blank')
+                );
+            } else {
+                document.getElementById('adminErrorMsg').classList.remove('hidden');
+            }
+        }
+
+        function showMsgModal(title, text, type = 'info', callback = null) {
+            document.getElementById('msgTitle').innerHTML = title;
+            document.getElementById('msgText').innerHTML = text;
+            
+            const iconDiv = document.getElementById('msgIcon');
+            if(type === 'success') {
+                iconDiv.className = "mb-4 text-5xl text-emerald-500";
+                iconDiv.innerHTML = '<i class="fa-regular fa-circle-check"></i>';
+            } else {
+                iconDiv.className = "mb-4 text-5xl text-blue-500";
+                iconDiv.innerHTML = '<i class="fa-solid fa-circle-info"></i>';
+            }
+
+            document.getElementById('msgModal').classList.remove('hidden');
+            
+            document.getElementById('msgModal').onclick = function(e) {
+                if(e.target === this || e.target.tagName === 'BUTTON') {
+                    closeMsgModal();
+                    if(callback) callback();
+                    document.getElementById('msgModal').onclick = null;
+                }
+            }
+        }
+        function closeMsgModal() { document.getElementById('msgModal').classList.add('hidden'); }
+
+        // 이벤트 리스너
+        document.getElementById('adminPassword').addEventListener('keypress', e => { if(e.key === 'Enter') checkAdminPassword(); });
+        document.addEventListener('keydown', e => {
+            if(e.key === 'Escape') { closeQrModal(); closeAdminModal(); closeMsgModal(); }
+        });
+
+        // 페이지 시작
+        window.onload = initializeDashboard;
+    </script>
+</body>
+</html>
